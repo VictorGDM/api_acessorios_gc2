@@ -4,6 +4,7 @@
   "description": "Iniciando API para realização da atividade de Gestão de Configuração II",
   "main": "index.js",
   "scripts": {
+    "start": "node ./src/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -17,5 +18,9 @@
   "bugs": {
     "url": "https://github.com/VictorGDM/api_acessorios_gc2/issues"
   },
-  "homepage": "https://github.com/VictorGDM/api_acessorios_gc2#readme"
+  "homepage": "https://github.com/VictorGDM/api_acessorios_gc2#readme",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1"
+  }
 }
