@@ -1,0 +1,21 @@
+{
+  "name": "api_acessorios_gc2",
+  "version": "1.0.0",
+  "description": "Iniciando API para realização da atividade de Gestão de Configuração II",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VictorGDM/api_acessorios_gc2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/VictorGDM/api_acessorios_gc2/issues"
+  },
+  "homepage": "https://github.com/VictorGDM/api_acessorios_gc2#readme"
+}
