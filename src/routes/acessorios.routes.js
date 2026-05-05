@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const { v7: uuidv7 } = require('uuid');
+const crypto = require('crypto'); // Usando o módulo nativo do Node
 const acessoriosMock = require('../mocks/acessorios.mock');
 
 const router = Router();
@@ -12,7 +12,7 @@ router.post('/', (req, res) => {
   const { nome, modelo, cor, quantidade, precoCompra, precoVenda } = req.body;
 
   const novoAcessorio = {
-    id: uuidv7(),
+    id: crypto.randomUUID(), // Gerando o ID nativamente
     nome,
     modelo,
     cor,
@@ -27,6 +27,18 @@ router.post('/', (req, res) => {
     mensagem: "Acessório adicionado com sucesso!",
     acessorio: novoAcessorio
   });
+});
+
+router.delete('/:id', (req, res) => {
+  const { id } = req.params;
+  const index = acessoriosMock.findIndex(item => item.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ erro: "Acessório não encontrado" });
+  }
+
+  acessoriosMock.splice(index, 1);
+  return res.status(204).send();
 });
 
 module.exports = router;
