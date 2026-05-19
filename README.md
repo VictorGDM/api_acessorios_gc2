@@ -1,177 +1,179 @@
 # 📱 VictorGDM - API de Acessórios
 
+[![Docker Pulls](https://badgen.net/docker/pulls/vgdm/api-acessorios?icon=docker&label=Pulls)](https://hub.docker.com/r/vgdm/api-acessorios)
+[![Docker Image Size](https://badgen.net/docker/size/vgdm/api-acessorios?icon=docker&label=Image%20Size)](https://hub.docker.com/r/vgdm/api-acessorios)
+
 > Projeto prático desenvolvido para a disciplina de **Gestão de Configuração II**.
 
-Esta é uma API RESTful minimalista construída com **Node.js** e **Express**, projetada para o gerenciamento de um estoque de acessórios.
+API RESTful minimalista construída com **Node.js** e **Express**, voltada para o gerenciamento de um estoque de acessórios.
 
-O objetivo principal deste repositório é aplicar e demonstrar boas práticas de controle de versão, qualidade de código, testes automatizados e fluxo de trabalho colaborativo.
+O objetivo deste projeto é demonstrar boas práticas de:
+
+- Controle de versão
+- Qualidade de código
+- Testes automatizados
+- Containerização
+- Integração contínua (CI/CD)
 
 ---
 
 ## 🚀 Funcionalidades da API
 
-A aplicação expõe os seguintes endpoints:
+Endpoints disponíveis:
 
-- **`GET /api/acessorios`**: Retorna a lista completa de acessórios cadastrados.
-- **`POST /api/acessorios`**: Recebe um payload JSON e armazena um novo acessório no sistema.
-- **`DELETE /api/acessorios/:id`**: Remove um acessório específico pelo seu ID.
-  - Retorna **`204 No Content`** em caso de sucesso.
-  - Retorna **`404 Not Found`** caso o acessório não seja encontrado.
+- **`GET /api/acessorios`**  
+  Retorna todos os acessórios cadastrados.
 
----
+- **`POST /api/acessorios`**  
+  Cria um novo acessório a partir de um payload JSON.
 
-## 🛡️ Qualidade e Automação CI/CD
-
-Este projeto possui foco em qualidade de código, testes automatizados e integração contínua.
-
-### Testes Automatizados
-
-Os testes foram implementados utilizando:
-
-- **Jest**
-- **Supertest**
-
-A API possui cobertura de testes de **100%**, superando a meta mínima de **90%** estabelecida para a baseline do projeto.
-
-### Padronização de Código
-
-O projeto utiliza **ESLint** para garantir:
-
-- Consistência no estilo do código.
-- Organização da base de código.
-- Prevenção de erros comuns durante o desenvolvimento.
-
-### GitHub Actions
-
-O projeto possui uma pipeline de CI/CD configurada com **GitHub Actions**.
-
-A pipeline é executada automaticamente a cada:
-
-- Push na branch `main`.
-- Pull Request direcionado para a branch `main`.
-
-A automação possui dois jobs principais:
-
-1. **Verificação de estilo do código**
-   - Executa o ESLint para validar a padronização do projeto.
-
-2. **Execução dos testes automatizados**
-   - Executa os testes com Jest e Supertest.
-   - Valida a cobertura de testes da aplicação.
+- **`DELETE /api/acessorios/:id`**  
+  Remove um acessório pelo ID:
+  - `204 No Content` → sucesso  
+  - `404 Not Found` → não encontrado  
 
 ---
 
-## ⚙️ Instruções de Execução
+## 🐳 Containerização com Docker
 
-Siga o passo a passo abaixo para rodar a aplicação e os testes no ambiente local.
+A aplicação está disponível no DockerHub e pode ser executada sem necessidade de instalar Node.js localmente.
 
-### 1. Instalando as dependências
+### ▶️ Executar com Docker
+
+```bash
+docker run -p 8080:8080 SEU_USUARIO_DOCKER/api-acessorios:latest
+```
+
+A API ficará disponível em:
+
+```
+http://localhost:8080
+```
+
+---
+
+## 🛡️ Qualidade e Automação (CI/CD)
+
+O projeto possui uma pipeline estruturada para garantir qualidade e consistência.
+
+### 🧪 Testes Automatizados
+
+- Frameworks:
+  - **Jest**
+  - **Supertest**
+- Cobertura: **100%** (acima da baseline de 90%)
+
+---
+
+### 📏 Padronização de Código
+
+- Ferramenta: **ESLint**
+- Objetivo:
+  - Manter consistência
+  - Evitar erros comuns
+  - Garantir legibilidade
+
+---
+
+### ⚙️ GitHub Actions (Pipeline)
+
+A automação é dividida em dois fluxos principais:
+
+#### 1. Build da Aplicação
+
+- Executado em **todas as branches**
+- Garante que:
+  - O projeto compila corretamente
+  - A imagem Docker é construída com sucesso
+
+#### 2. Publicação no DockerHub
+
+- Executado **apenas na branch `main`**
+- Responsável por:
+  - Publicar a imagem Docker
+  - Garantir que apenas código validado vá para produção
+
+---
+
+## ⚙️ Execução Local (Node.js)
+
+Caso prefira rodar o projeto sem Docker:
+
+### 1. Instalar dependências
 
 ```bash
 npm install
 ```
 
-### 2. Configurando as variáveis de ambiente
-
-Localize o arquivo de exemplo chamado:
+### 2. Configurar variáveis de ambiente
 
 ```bash
-.env.example
+cp .env.example .env
 ```
 
-Faça uma cópia desse arquivo e renomeie para:
-
-```bash
-.env
-```
-
-Depois, certifique-se de que a variável de ambiente está definida corretamente.
-
-Exemplo:
+Exemplo de configuração:
 
 ```env
 PORT=8080
 ```
 
-### 3. Iniciando a API
+---
+
+### 3. Iniciar aplicação
 
 ```bash
 npm run start
 ```
 
-### 4. Rodando os testes com relatório de cobertura
+---
+
+### 4. Executar testes com cobertura
 
 ```bash
 npm run test:cov
 ```
 
-### 5. Verificando o estilo do código com ESLint
+---
+
+## 🔀 Workflow e Governança
+
+O projeto segue o modelo **GitHub Flow**.
+
+### 🌿 Estratégia de Branches
+
+- `main` → produção
+- `feature/*` → novas funcionalidades
+- `ci/*` → melhorias na pipeline
+- `test/*` → testes
+
+---
+
+### 🧾 Commits
+
+- Padrão: **Commits Semânticos**
+- Exemplos:
 
 ```bash
-npm run lint
+feat: adicionar endpoint DELETE
+test: cobertura da rota de remoção
+ci: pipeline de build docker
+docs: atualização do README
 ```
 
----
-
-## 🔀 Workflow de Desenvolvimento e Regras
-
-O modelo de ramificação adotado no projeto foi o **GitHub Flow**.
-
-Toda nova funcionalidade foi desenvolvida em branches isoladas, utilizando padrões como:
-
-- `feature/*`
-- `ci/*`
-- `test/*`
-
-As alterações foram integradas à branch principal por meio de **Pull Requests**.
+- Assinatura:
+  - Commits assinados via **SSH**
 
 ---
 
-## 📌 Políticas Adotadas no Repositório
+### 🔒 Proteção da Branch Main
 
-### Commits Semânticos
+A branch `main` possui regras obrigatórias:
 
-Todos os commits seguem o padrão de commits semânticos.
-
-Exemplos:
-
-```bash
-feat: adicionar rota para cadastrar acessório
-test: adicionar testes da rota DELETE
-ci: configurar pipeline do GitHub Actions
-docs: atualizar documentação do README
-```
-
-### Assinatura de Commits
-
-Os commits são assinados digitalmente, garantindo maior segurança e autenticidade na autoria das alterações.
-
-### Proteção da Branch Main
-
-A branch `main` está protegida e exige que os status checks sejam aprovados antes de qualquer merge.
-
-Os checks obrigatórios incluem:
-
-- Verificação de estilo com ESLint.
-- Execução dos testes automatizados.
-- Validação da cobertura de testes.
-
----
-
-## ✅ Resumo das Entregas
-
-Nesta versão do projeto, foram contempladas as principais exigências da atividade:
-
-- Implementação da rota **`DELETE /api/acessorios/:id`**.
-- Retorno correto dos status **`204`** e **`404`**.
-- Testes automatizados com **Jest** e **Supertest**.
-- Cobertura de testes de **100%**.
-- Pipeline de CI/CD com **GitHub Actions**.
-- Jobs separados para lint e testes.
-- Uso de commits semânticos.
-- Assinatura digital dos commits.
-- Proteção da branch `main`.
-- Fluxo de desenvolvimento baseado em **GitHub Flow**.
+- Aprovação de Pull Request
+- Status checks obrigatórios:
+  - ✅ Lint (ESLint)
+  - ✅ Testes automatizados
+  - ✅ Cobertura de testes
 
 ---
 
@@ -182,8 +184,7 @@ Nesta versão do projeto, foram contempladas as principais exigências da ativid
 - Jest
 - Supertest
 - ESLint
-- Git
-- GitHub
+- Docker
 - GitHub Actions
 
 ---
