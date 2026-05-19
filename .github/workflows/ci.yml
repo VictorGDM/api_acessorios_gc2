@@ -1,8 +1,8 @@
-name: Pipeline de Qualidade
+name: Pipeline de Qualidade e Entrega
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "**" ] # Roda sempre que houver mudança em QUALQUER branch
   pull_request:
     branches: [ "main" ]
 
@@ -11,17 +11,13 @@ jobs:
     name: Verificacao de Estilo
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout do codigo
-        uses: actions/checkout@v4
-        
+      - uses: actions/checkout@v4
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          
       - name: Instalar dependencias
         run: npm install
-        
       - name: Executar ESLint
         run: npm run lint
 
@@ -29,16 +25,55 @@ jobs:
     name: Cobertura de Testes
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout do codigo
-        uses: actions/checkout@v4
-        
+      - uses: actions/checkout@v4
       - name: Configurar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
-          
       - name: Instalar dependencias
         run: npm install
-        
       - name: Executar Testes com Cobertura
         run: npm run test:cov
+
+  build-image:
+    name: Construcao da Imagem
+    runs-on: ubuntu-latest
+    needs: [lint, test] # Só constrói a imagem se o código estiver com qualidade
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+        
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Testar Construcao da Imagem Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false # Apenas constrói, não publica (atende a exigência de rodar em qualquer branch)
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/api-acessorios:latest
+
+  publish-image:
+    name: Publicacao no DockerHub
+    runs-on: ubuntu-latest
+    needs: build-image # Só publica se a construção deu certo
+    if: github.ref == 'refs/heads/main' # EXIGÊNCIA: Executar apenas na baseline
+    steps:
+      - name: Checkout do codigo
+        uses: actions/checkout@v4
+        
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Construir e Publicar a imagem oficial
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/api-acessorios:latest
