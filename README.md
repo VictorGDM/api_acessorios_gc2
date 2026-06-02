@@ -135,6 +135,88 @@ npm run test:cov
 
 ---
 
+## 📦 Infraestrutura Virtualizada com Vagrant
+
+O projeto conta com uma infraestrutura automatizada multi-máquina gerenciada pelo **Vagrant** utilizando o provedor **VirtualBox** e o sistema operacional **Ubuntu 22.04 LTS (Jammy Jellyfish)**.
+
+A arquitetura é dividida em duas máquinas virtuais na mesma rede privada virtual:
+
+- **VM1 (Cliente / Testes):**
+  - **Hostname:** `vm1`
+  - **IP Privado (Classe C):** `192.168.56.10`
+  - **Memória RAM:** `1024 MB`
+  - **Função:** Simular o cliente ou ambiente externo realizando chamadas para a API.
+  
+- **VM2 (Servidor Backend):**
+  - **Hostname:** `vm2`
+  - **IP Privado (Classe C):** `192.168.56.20`
+  - **Memória RAM:** `1024 MB` (suficiente para execução do Node.js)
+  - **Função:** Hospedar e executar a aplicação. Possui a pasta local sincronizada com a pasta `/home/vagrant/vagrant_data` na VM. É provisionada automaticamente instalando Node.js v20, npm, dependências e iniciando a API com PM2 em segundo plano na porta `8080`.
+
+---
+
+### 🛠️ Pré-requisitos
+
+Para executar essa infraestrutura, você precisará instalar na sua máquina física:
+1. [VirtualBox](https://www.virtualbox.org/)
+2. [Vagrant](https://www.vagrantup.com/)
+
+---
+
+### ▶️ Como Executar a Infraestrutura
+
+1. **Subir as máquinas virtuais:**
+   Abra o seu terminal na raiz do projeto (onde o arquivo `Vagrantfile` está localizado) e execute:
+   ```bash
+   vagrant up
+   ```
+   *Esse processo baixará a imagem base (se não estiver em cache) e configurará ambas as VMs, além de provisionar a VM2.*
+
+2. **Acessar a VM1 (Cliente):**
+   Com as máquinas rodando, acesse o shell da **VM1**:
+   ```bash
+   vagrant ssh vm1
+   ```
+
+3. **Testar a rota GET dentro da VM1:**
+   Dentro da **VM1**, faça a requisição para a rota GET da API hospedada na **VM2** usando o IP privado dela:
+   ```bash
+   curl -i http://192.168.56.20:8080/api/acessorios
+   ```
+   
+   Você deve receber uma resposta com o cabeçalho `HTTP/1.1 200 OK` e o JSON com a lista de acessórios cadastrados:
+   ```http
+   HTTP/1.1 200 OK
+   X-Powered-By: Express
+   Content-Type: application/json; charset=utf-8
+   ...
+
+   [{"id":"...","nome":"Capinha","modelo":"Samsung S26 Ultra","cor":"preto","quantidade":2,"precoCompra":5,"precoVenda":10}]
+   ```
+
+---
+
+### ⚙️ Comandos Úteis do Vagrant
+
+- **Verificar status das máquinas:**
+  ```bash
+  vagrant status
+  ```
+- **Desligar as máquinas:**
+  ```bash
+  vagrant halt
+  ```
+- **Reiniciar/Recarregar configurações:**
+  ```bash
+  vagrant reload --provision
+  ```
+- **Destruir as máquinas virtuais:**
+  ```bash
+  vagrant destroy -f
+  ```
+
+---
+
 ## 🔀 Workflow e Governança
 
 O projeto segue o modelo **GitHub Flow**.
