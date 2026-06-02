@@ -38,6 +38,7 @@ jobs:
   build-image:
     name: Construcao da Imagem
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [lint, test] # Só constrói a imagem se o código estiver com qualidade
     steps:
       - name: Checkout do codigo
@@ -56,6 +57,7 @@ jobs:
   publish-image:
     name: Publicacao no DockerHub
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: build-image # Só publica se a construção deu certo
     if: github.ref == 'refs/heads/main' # EXIGÊNCIA: Executar apenas na baseline
     steps:
