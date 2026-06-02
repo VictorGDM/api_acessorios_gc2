@@ -1,0 +1,84 @@
+---
+- name: Configurar Servidor Backend Node.js
+  hosts: backend
+  become: yes
+  tasks:
+    - name: Atualizar cache do apt
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Instalar pacotes de sistema necessarios
+      apt:
+        name:
+          - curl
+          - build-essential
+          - git
+        state: present
+
+    - name: Adicionar repositorio do Node.js v20.x
+      shell: curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+      args:
+        creates: /etc/apt/sources.list.d/nodesource.list
+
+    - name: Instalar Node.js e NPM
+      apt:
+        name: nodejs
+        state: present
+
+    - name: Instalar PM2 globalmente
+      npm:
+        name: pm2
+        global: yes
+
+    - name: Garantir que o diretorio da aplicacao existe com permissoes do vagrant
+      file:
+        path: /home/vagrant/api_acessorios
+        state: directory
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+
+    - name: Clonar o repositorio Git no VM2
+      git:
+        repo: 'https://github.com/VictorGDM/api_acessorios_gc2.git'
+        dest: /home/vagrant/api_acessorios
+        clone: yes
+        force: yes
+      become: yes
+      become_user: vagrant
+
+    - name: Instalar dependencias do Node.js
+      npm:
+        path: /home/vagrant/api_acessorios
+      become: yes
+      become_user: vagrant
+
+    - name: Copiar arquivo .env.example se .env nao existir
+      copy:
+        src: /home/vagrant/api_acessorios/.env.example
+        dest: /home/vagrant/api_acessorios/.env
+        remote_src: yes
+        force: no
+      become: yes
+      become_user: vagrant
+
+    - name: Definir SERVER_PORTA=8080 no .env
+      lineinfile:
+        path: /home/vagrant/api_acessorios/.env
+        regexp: '^SERVER_PORTA='
+        line: 'SERVER_PORTA=8080'
+      become: yes
+      become_user: vagrant
+
+    - name: Parar aplicacao PM2 existente (se houver)
+      shell: pm2 delete api-acessorios || true
+      become: yes
+      become_user: vagrant
+
+    - name: Iniciar aplicacao Node.js com PM2
+      shell: pm2 start src/server.js --name api-acessorios
+      args:
+        chdir: /home/vagrant/api_acessorios
+      become: yes
+      become_user: vagrant
