@@ -6,7 +6,7 @@ Vagrant.configure("2") do |config|
   config.vm.box = "ubuntu/jammy64"
 
   # ==========================================
-  # CONFIGURAÇÃO DA VM1 (Máquina Cliente)
+  # CONFIGURAÇÃO DA VM1 (Nó de Controle - Ansible)
   # ==========================================
   config.vm.define "vm1" do |vm1|
     vm1.vm.hostname = "vm1"
@@ -14,12 +14,44 @@ Vagrant.configure("2") do |config|
     # Definir um endereço IPv4 privado (Classe C)
     vm1.vm.network "private_network", ip: "192.168.56.10"
 
+    # Sincronizar a pasta da aplicação com a pasta vagrant_data
+    vm1.vm.synced_folder ".", "/home/vagrant/vagrant_data"
+
     # Configuração de recursos no provedor VirtualBox
     vm1.vm.provider "virtualbox" do |vb|
-      vb.name = "VM1-Client"
+      vb.name = "VM1-Client-ControlNode"
       vb.memory = "1024" # 1024 MB de memória principal
       vb.cpus = 1
     end
+
+    # Provisionamento da VM1: instalar Ansible e gerar chave SSH
+    vm1.vm.provision "shell", inline: <<-SHELL
+      echo "=== VM1: Iniciando provisionamento do Nó de Controle ==="
+      export DEBIAN_FRONTEND=noninteractive
+
+      # Atualizar repositórios e instalar Ansible
+      sudo apt-get update -y
+      sudo apt-get install -y software-properties-common curl git build-essential
+      sudo add-apt-repository --yes --update ppa:ansible/ansible
+      sudo apt-get install -y ansible
+
+      # Verificar versão instalada
+      ansible --version
+
+      # Gerar par de chaves SSH para o usuário vagrant
+      if [ ! -f /home/vagrant/.ssh/id_rsa ]; then
+        echo "=== VM1: Gerando par de chaves SSH para o Ansible ==="
+        ssh-keygen -t rsa -N "" -f /home/vagrant/.ssh/id_rsa -q
+      fi
+
+      # Copiar a chave pública para a pasta sincronizada para que a VM2 possa lê-la
+      cp /home/vagrant/.ssh/id_rsa.pub /home/vagrant/vagrant_data/vm1_key.pub
+      
+      # Ajustar permissões das chaves
+      chown -R vagrant:vagrant /home/vagrant/.ssh
+      
+      echo "=== VM1: Provisionamento concluído! Chave SSH exportada. ==="
+    SHELL
   end
 
   # ==========================================
@@ -31,7 +63,7 @@ Vagrant.configure("2") do |config|
     # Definir um endereço IPv4 privado (Classe C)
     vm2.vm.network "private_network", ip: "192.168.56.20"
 
-    # Sincronizar a pasta da sua aplicação com a pasta vagrant_data dentro da VM2
+    # Sincronizar a pasta da aplicação com a pasta vagrant_data
     vm2.vm.synced_folder ".", "/home/vagrant/vagrant_data"
 
     # Configuração de recursos no provedor VirtualBox
@@ -41,64 +73,31 @@ Vagrant.configure("2") do |config|
       vb.cpus = 1
     end
 
-    # Provisionamento da VM2: instalar dependências e executar a aplicação
+    # Provisionamento da VM2: configurar chave SSH autorizada da VM1
     vm2.vm.provision "shell", inline: <<-SHELL
-      echo "=== Iniciando provisionamento da VM2 ==="
+      echo "=== VM2: Aguardando chave SSH do Nó de Controle (VM1) ==="
       
-      # Evitar prompts interativos durante a instalação de pacotes
-      export DEBIAN_FRONTEND=noninteractive
-
-      # Atualizar o gerenciador de pacotes
-      sudo apt-get update -y
-
-      # Instalar dependências de sistema necessárias
-      sudo apt-get install -y curl build-essential git
-
-      # Adicionar repositório do Node.js v20.x (LTS estável)
-      echo "=== Instalando Node.js e NPM ==="
-      curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-      sudo apt-get install -y nodejs
-
-      # Verificar versões instaladas
-      node -v
-      npm -v
-
-      # Instalar o PM2 globalmente para gerenciar o processo da aplicação em background
-      sudo npm install -g pm2
-
-      # Acessar a pasta sincronizada da aplicação
-      cd /home/vagrant/vagrant_data
-
-      # Configurar arquivo de variáveis de ambiente .env
-      echo "=== Configurando variáveis de ambiente ==="
-      if [ ! -f .env ]; then
-        if [ -f .env.example ]; then
-          cp .env.example .env
-        else
-          echo "SERVER_PORTA=8080" > .env
+      # Loop para aguardar a VM1 gerar e exportar a chave pública na pasta sincronizada
+      for i in {1..30}; do
+        if [ -f /home/vagrant/vagrant_data/vm1_key.pub ]; then
+          break
         fi
+        echo "Aguardando chave da VM1..."
+        sleep 2
+      done
+
+      # Verificar se a chave existe e adicioná-la às chaves autorizadas para login sem senha
+      if [ -f /home/vagrant/vagrant_data/vm1_key.pub ]; then
+        KEY_CONTENT=$(cat /home/vagrant/vagrant_data/vm1_key.pub)
+        if ! grep -q "$KEY_CONTENT" /home/vagrant/.ssh/authorized_keys; then
+          echo "$KEY_CONTENT" >> /home/vagrant/.ssh/authorized_keys
+          echo "=== VM2: Chave SSH do Nó de Controle (VM1) adicionada com sucesso! ==="
+        else
+          echo "=== VM2: Chave SSH do Nó de Controle já está presente em authorized_keys ==="
+        fi
+      else
+        echo "=== VM2 ERROR: Chave SSH da VM1 não foi encontrada em vagrant_data. ==="
       fi
-
-      # Garantir que a porta correta esteja configurada no .env
-      sed -i 's/SERVER_PORTA=.*/SERVER_PORTA=8080/g' .env
-      # Se a variável não estiver no arquivo por algum motivo, adicioná-la
-      if ! grep -q "SERVER_PORTA" .env; then
-        echo "SERVER_PORTA=8080" >> .env
-      fi
-
-      # Instalar dependências da aplicação Node.js
-      echo "=== Instalando dependências do projeto ==="
-      npm install
-
-      # Parar instâncias anteriores se houver, e iniciar a aplicação com PM2
-      echo "=== Iniciando o servidor backend com PM2 ==="
-      pm2 delete api-acessorios || true
-      pm2 start src/server.js --name api-acessorios
-
-      # Salvar a lista de processos para iniciar junto com o sistema
-      pm2 save
-      
-      echo "=== Provisionamento da VM2 concluído com sucesso! Servidor rodando na porta 8080 ==="
     SHELL
   end
 end
