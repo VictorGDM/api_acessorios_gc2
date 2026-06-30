@@ -225,6 +225,44 @@ Para executar essa infraestrutura, você precisará instalar na sua máquina fí
 
 ---
 
+## 📊 Monitoramento com Netdata
+
+O projeto inclui uma solução de monitoramento em tempo real baseada no **Netdata**, configurada via Ansible.
+
+### Funcionalidades
+
+- **Dashboard web** em tempo real com métricas de CPU, memória, disco e rede
+- **Alerta automático** quando a CPU atinge **80%** ou mais, com envio de e-mail
+- **Mailhog** como servidor SMTP local para captura e visualização dos e-mails de alerta
+- **stress-ng** instalado para testes de estresse da CPU
+
+### Como Provisionar o Monitoramento
+
+1. Com as VMs rodando, acesse a **VM1**:
+   ```bash
+   vagrant ssh vm1
+   ```
+
+2. Execute o playbook de monitoramento:
+   ```bash
+   cd /home/vagrant/vagrant_data/vagrant/data
+   ansible-playbook -i /home/vagrant/vagrant_data/ansible/hosts configurar-monitoramento.yml
+   ```
+
+3. Acesse os dashboards:
+   - **Netdata:** http://192.168.56.20:19999
+   - **Mailhog:** http://192.168.56.20:8025
+
+4. Teste o alerta de CPU:
+   ```bash
+   vagrant ssh vm2
+   stress-ng --cpu 0 --timeout 120s
+   ```
+
+> 📖 Para documentação detalhada sobre o monitoramento, consulte [vagrant/README.md](vagrant/README.md).
+
+---
+
 ## 🔀 Workflow e Governança
 
 O projeto segue o modelo **GitHub Flow**.
