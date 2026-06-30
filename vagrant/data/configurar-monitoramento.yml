@@ -1,0 +1,243 @@
+---
+- name: Configurar Monitoramento com Netdata
+  hosts: backend
+  become: yes
+  vars:
+    # Configuração do Mailhog (SMTP local para testes)
+    mailhog_smtp_port: 1025
+    mailhog_web_port: 8025
+    # Configuração do alerta de e-mail
+    alert_email_to: "admin@exemplo.com"
+    alert_email_from: "netdata@vm2.local"
+
+  tasks:
+    # ==========================================
+    # BLOCO 1: Instalação do Mailhog (SMTP local)
+    # ==========================================
+    - name: Baixar binario do Mailhog
+      get_url:
+        url: "https://github.com/mailhog/MailHog/releases/download/v1.0.1/MailHog_linux_amd64"
+        dest: /usr/local/bin/mailhog
+        mode: '0755'
+
+    - name: Criar usuario de servico para o Mailhog
+      user:
+        name: mailhog
+        system: yes
+        shell: /usr/sbin/nologin
+        create_home: no
+
+    - name: Criar servico systemd do Mailhog
+      copy:
+        dest: /etc/systemd/system/mailhog.service
+        content: |
+          [Unit]
+          Description=Mailhog - Servidor SMTP local para testes
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=mailhog
+          ExecStart=/usr/local/bin/mailhog -smtp-bind-addr 0.0.0.0:{{ mailhog_smtp_port }} -api-bind-addr 0.0.0.0:{{ mailhog_web_port }} -ui-bind-addr 0.0.0.0:{{ mailhog_web_port }}
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Iniciar e habilitar servico do Mailhog
+      systemd:
+        name: mailhog
+        state: started
+        enabled: yes
+        daemon_reload: yes
+
+    # ==========================================
+    # BLOCO 2: Instalação do Netdata
+    # ==========================================
+    - name: Instalar dependencias do sistema para o Netdata
+      apt:
+        name:
+          - curl
+          - iproute2
+          - python3
+          - lm-sensors
+        state: present
+        update_cache: yes
+
+    - name: Verificar se o Netdata ja esta instalado
+      stat:
+        path: /usr/sbin/netdata
+      register: netdata_binary
+
+    - name: Instalar Netdata via script oficial (kickstart)
+      shell: >
+        curl -fsSL https://get.netdata.cloud/kickstart.sh | bash -s --
+        --dont-wait
+        --dont-start-it
+        --disable-telemetry
+      args:
+        creates: /usr/sbin/netdata
+      when: not netdata_binary.stat.exists
+
+    - name: Configurar Netdata para escutar em todas as interfaces (0.0.0.0)
+      lineinfile:
+        path: /etc/netdata/netdata.conf
+        regexp: '^\s*bind to\s*='
+        line: '        bind to = 0.0.0.0'
+        insertafter: '\[web\]'
+        create: yes
+
+    - name: Garantir secao [web] existe no netdata.conf
+      lineinfile:
+        path: /etc/netdata/netdata.conf
+        regexp: '^\[web\]'
+        line: '[web]'
+        create: yes
+
+    - name: Iniciar e habilitar servico do Netdata
+      systemd:
+        name: netdata
+        state: restarted
+        enabled: yes
+
+    # ==========================================
+    # BLOCO 3: Configuração de Alerta de CPU >= 80%
+    # ==========================================
+    - name: Criar diretorio de alertas personalizados do Netdata
+      file:
+        path: /etc/netdata/health.d
+        state: directory
+        owner: netdata
+        group: netdata
+        mode: '0755'
+
+    - name: Criar alerta personalizado de CPU >= 80%
+      copy:
+        dest: /etc/netdata/health.d/cpu_alert.conf
+        owner: netdata
+        group: netdata
+        mode: '0644'
+        content: |
+          # Alerta personalizado: CPU >= 80%
+          # Atividade de Monitoramento - Gestao de Configuracao II
+
+           alarm: cpu_usage_high
+              on: system.cpu
+          lookup: average -1m unaligned of user,system,softirq,irq,guest
+           units: %
+           every: 10s
+            warn: $this > 80
+            crit: $this > 95
+           delay: down 5m multiplier 1.5 max 1h
+            info: Uso medio de CPU nos ultimos 1 minuto
+              to: sysadmin
+
+    - name: Configurar notificacao por e-mail no Netdata (health_alarm_notify.conf)
+      copy:
+        dest: /etc/netdata/health_alarm_notify.conf
+        owner: netdata
+        group: netdata
+        mode: '0644'
+        content: |
+          # Configuracao de notificacao de alertas do Netdata
+          # Usando Mailhog como servidor SMTP local para testes
+
+          # Habilitar notificacoes por e-mail
+          SEND_EMAIL="YES"
+
+          # Destinatario dos alertas
+          DEFAULT_RECIPIENT_EMAIL="{{ alert_email_to }}"
+
+          # Remetente
+          EMAIL_SENDER="{{ alert_email_from }}"
+
+          # Configuracao SMTP via sendmail/msmtp
+          # O Netdata usa o comando 'sendmail' do sistema
+          # Configurado via msmtp para enviar ao Mailhog
+
+    # ==========================================
+    # BLOCO 4: Configurar msmtp como MTA para Mailhog
+    # ==========================================
+    - name: Instalar msmtp (cliente SMTP leve)
+      apt:
+        name:
+          - msmtp
+          - msmtp-mta
+        state: present
+
+    - name: Configurar msmtp para enviar e-mails via Mailhog
+      copy:
+        dest: /etc/msmtprc
+        mode: '0644'
+        content: |
+          # Configuracao global do msmtp
+          # Encaminha e-mails para o Mailhog (SMTP local na porta 1025)
+
+          defaults
+          auth           off
+          tls            off
+          logfile        /var/log/msmtp.log
+
+          account        default
+          host           127.0.0.1
+          port           {{ mailhog_smtp_port }}
+          from           {{ alert_email_from }}
+
+    - name: Criar link simbolico do sendmail para msmtp
+      file:
+        src: /usr/bin/msmtp
+        dest: /usr/sbin/sendmail
+        state: link
+        force: yes
+
+    - name: Criar arquivo de log do msmtp
+      file:
+        path: /var/log/msmtp.log
+        state: touch
+        owner: netdata
+        group: netdata
+        mode: '0664'
+
+    - name: Reiniciar Netdata para aplicar configuracoes de alerta
+      systemd:
+        name: netdata
+        state: restarted
+
+    # ==========================================
+    # BLOCO 5: Instalação do stress-ng para testes
+    # ==========================================
+    - name: Instalar stress-ng para testes de estresse da CPU
+      apt:
+        name: stress-ng
+        state: present
+
+    # ==========================================
+    # BLOCO 6: Validação final
+    # ==========================================
+    - name: Verificar que o Netdata esta rodando
+      systemd:
+        name: netdata
+      register: netdata_status
+
+    - name: Verificar que o Mailhog esta rodando
+      systemd:
+        name: mailhog
+      register: mailhog_status
+
+    - name: Exibir status dos servicos
+      debug:
+        msg: |
+          ========================================
+          MONITORAMENTO CONFIGURADO COM SUCESSO!
+          ========================================
+          Netdata:  {{ netdata_status.status.ActiveState }}
+          Mailhog:  {{ mailhog_status.status.ActiveState }}
+          ----------------------------------------
+          Dashboard Netdata: http://192.168.56.20:19999
+          Interface Mailhog: http://192.168.56.20:8025
+          ----------------------------------------
+          Para testar o alerta de CPU:
+            vagrant ssh vm2
+            stress-ng --cpu 0 --timeout 120s
+          ========================================
